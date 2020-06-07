@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
   gstack = new_stack();
   tris = new_matrix(4, 0);
   edges = new_matrix(4, 4);
-
+  srand(1289);
   if ( argc == 2 )
     parse_file( argv[1],gstack, edges, tris, s );
   else

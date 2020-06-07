@@ -1,53 +1,50 @@
-#BODY
 push
 move
 250 250 0
-rotate
-z -30
-sphere
-0 0 0 50
-push 
-rotate
-z 60
-rotate
-x 20
-torus
-0 0 0 10 90
 push
-move 100 0 0
 rotate
-z 10
+x 70
+torus
+0 0 0 100 300
+pop
+sphere
+0 0 100 50
+push
+scale
+1 2 1
+sphere
+0 30 0 30
+sphere
+0 -30 0 30
+pop
+push
 rotate
-y 40
-box
-0 200 0 10 10 10
-box
-200 100 0 10 10 10
-box
--200 140 0 10 10 10
-box
-0 -200 0 10 10 10
-box
-200 -100 0 10 10 10
-box
--200 -140 0 10 10 10
+z 45
+scale
+1 2 1
+sphere
+0 30 0 30
+sphere
+0 -30 0 30
 pop
-pop
-line
-100 0 0 100 200 0
-line
-200 0 0 200 200 0
-line
-100 100 0 200 100 0
 push
 rotate
 z 90
-move
-0 -500 0 
-line
-0 0 0 0 200 0
-line
-200 0 0 200 200 0
-line
-0 100 0 200 100 0
+scale
+1 2 1
+sphere
+0 30 0 30
+sphere
+0 -30 0 30
+pop
+push
+rotate
+z 135
+scale
+1 2 1
+sphere
+0 30 0 30
+sphere
+0 -30 0 30
+pop
 display
