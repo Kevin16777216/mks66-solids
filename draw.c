@@ -440,30 +440,27 @@ void draw_tris(struct matrix *points,zbuffer zbuf, screen s, color c)
 } // end draw_tris
 
 //extra functions just to make code a bit more manageable
+int getB(int x0, int x1, int y0, int y1){
+  return (y0 > y1 || (y0 == y1 && x1 < x0));
+}
 int getT(int x0, int x1, int x2, int y0, int y1, int y2){
   if(y0 > y1){
-    if(y0 > y2)
+    if(y0 > y2 || (!getB(x2,x0,y2,y0)))
       return 0;
-    if(y2 > y0 || (y2 == y0 && x0 > x2))
-      return 2;
-    return 0;
+    return 2;
   }
   if(y1 > y2){
-    return y1 > y0 || (y1 == y0 && x1 < x0);
+    return getB(x1,x0,y1,y0);
   }
   if((y1 == y2 && x1 < x2)){
     return 1;
   }
   return 2;
 }
-int getB(int x0, int x1, int y0, int y1){
-  return (y0 > y1 || (y0 == y1 && x1 < x0));
-}
 
 void draw_tri(double x0,double y0,double z0,double x1,double y1,double z1,double x2,double y2,double z2,zbuffer zbuf, screen s, color c){
   if(check_valid_tri(x0,y0,z0,x1,y1,z1,x2,y2,z2)){
     double tx,ty,tz,bx,by,bz,mx,my,mz;
-    double dx,dz,dmx,dmz,dtx,dtz;
     switch(getT(x0,x1,x2,y0,y1,y2)){
       case 0:
         tx = x0;ty = y0;tz = z0;
@@ -481,19 +478,15 @@ void draw_tri(double x0,double y0,double z0,double x1,double y1,double z1,double
                         }else{bx = x0;by = y0;bz = z0;mx = x1;my = y1;mz = z1;}
         break;
     }
-    const double d0y = (ty-by);
-    const double d1y = (my-by);
-    const double d2y = (ty-my);
-    dx = (tx-bx) / d0y;
-    dz = (tz-bz) / d0y;
-    if(my != by){
-      dmx = (mx-bx)/ d1y;
-      dmz = (mz-bz)/ d1y;
-    }
-    if(ty != my){
-      dtx = (tx-mx)/ d2y;
-      dtz = (tz-mz)/ d2y;
-    }
+    const double d0y = (ty-by+1);
+    const double d1y = (my-by+1);
+    const double d2y = (ty-my+1);
+    const double dx = (tx-bx) / d0y;
+    const double dz = (tz-bz) / d0y;
+    const double  dmx = (mx-bx)/ d1y;
+    const double  dmz = (mz-bz)/ d1y;
+    const double  dtx = (tx-mx)/ d2y;
+    const double  dtz = (tz-mz)/ d2y;
     int y = by;
     double kx0,kz0,kx1,kz1;
     kx0 = bx;
@@ -503,6 +496,7 @@ void draw_tri(double x0,double y0,double z0,double x1,double y1,double z1,double
     const int hy = my;
     const int gy = ty;
     color c = genColor();
+    //this should save some time
     while(y != hy){
       sline(kx0,kx1,kz0,kz1,++y,zbuf, s,c);
       kx0 += dx;
@@ -512,13 +506,14 @@ void draw_tri(double x0,double y0,double z0,double x1,double y1,double z1,double
     }
     kx1 = mx;
     kz1 = mz;
-    while(y != gy){
+    while(y <= gy){
       sline(kx0,kx1,kz0,kz1,++y,zbuf,s,c);
       kx0 += dx;
       kz0 += dz;
       kx1 += dtx;
       kz1 += dtz;
     }
+    
   }
 }
 color genColor(){
@@ -532,26 +527,17 @@ void sline(int x0, int x1, double z0, double z1, int y,zbuffer zbuf, screen s, c
   if(x0>x1){
     sline(x1,x0,z1,z0,y,zbuf, s,c);
   }
-  double diff = 0;
-  double cz = z0;
-  if(x0 != x1){
-    diff = (z1-z0)/(x1-x0+1);
-  }
+  const double diff = (z1-z0)/(x1-x0+1);
   while(x0 <= x1){
-    plot(zbuf,s,c,x0,y, cz);
-    cz += diff;
-    ++x0;
+    plot(zbuf,s,c,x0++,y, z0);
+    z0 += diff;
   }
 }
 void draw_line(int x0, int y0, int x1, int y1,double z0, double z1, zbuffer zbuf, screen s, color c)
 {
 
   int x, y, d, A, B;
-  double diff = 0;
   double cz = z0;
-  if(x0 != x1){
-    diff = (z1-z0)/(x1-x0+1);
-  }
   //swap points if going right -> left
   int xt, yt;
   if (x0 > x1)
@@ -570,9 +556,8 @@ void draw_line(int x0, int y0, int x1, int y1,double z0, double z1, zbuffer zbuf
   B = -2 * (x1 - x0);
 
   //octants 1 and 8
-  if (abs(x1 - x0) >= abs(y1 - y0))
-  {
-
+  if (abs(x1 - x0) >= abs(y1 - y0)){
+    const double diff = (z1-z0)/(x1-x0+1);
     //octant 1
     if (A > 0)
     {
@@ -618,7 +603,7 @@ void draw_line(int x0, int y0, int x1, int y1,double z0, double z1, zbuffer zbuf
   //octants 2 and 7
   else
   {
-
+    const double diff = (z1-z0)/(y1-y0+1);
     //octant 2
     if (A > 0)
     {
