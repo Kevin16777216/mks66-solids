@@ -74,17 +74,17 @@ int check_str(char * line, char * value){
   return strncmp(line, value, strlen(line)) == 0;
 }
 
-void mul_tris(struct stack * gstack, struct matrix * tris, screen s , color c){
+void mul_tris(struct stack * gstack, struct matrix * tris, zbuffer zbuf, screen s , color c){
   struct matrix * tmp = peek(gstack);
       matrix_mult(tmp, tris);
-      draw_tris(tris, s,c);
+      draw_tris(tris, zbuf, s,c);
       tris->lastcol = 0;
 }
 
-void mul_edges(struct stack * gstack, struct matrix * edges, screen s , color c){
+void mul_edges(struct stack * gstack, struct matrix * edges, zbuffer zbuf, screen s , color c){
   struct matrix * tmp = peek(gstack);
       matrix_mult(tmp, edges);
-      draw_lines(edges, s,c);
+      draw_lines(edges, zbuf, s,c);
       edges->lastcol = 0;
 }
 
@@ -93,7 +93,8 @@ void parse_file ( char * filename,
                   struct stack * gstack,
                   struct matrix * edges,
                   struct matrix * tris,
-                  screen s) {
+                  screen s,
+                  zbuffer zbuf) {
 
   FILE *f;
   char line[255];
@@ -102,7 +103,7 @@ void parse_file ( char * filename,
   c.red = 0;
   c.green = 255;
   c.blue = 255;
-  
+  clear_zbuf(zbuf);
   if ( strcmp(filename, "stdin") == 0 ){ 
     f = stdin;
   }else{
@@ -128,7 +129,7 @@ void parse_file ( char * filename,
       sscanf(line, "%lf %lf %lf %lf",
              xvals, yvals, zvals, &r);
       add_circle( edges, xvals[0], yvals[0], zvals[0], r, step);
-      mul_edges(gstack, edges, s,c);
+      mul_edges(gstack, edges, zbuf, s,c);
     }
 
     //hermite, bezier
@@ -140,7 +141,7 @@ void parse_file ( char * filename,
                     xvals+2, yvals+2, xvals+3, yvals+3);
       add_curve( edges, xvals[0], yvals[0], xvals[1], yvals[1],
                         xvals[2], yvals[2], xvals[3], yvals[3], step, type);
-      mul_edges(gstack, edges, s,c);
+      mul_edges(gstack, edges, zbuf, s,c);
     }
     
     //line
@@ -151,7 +152,7 @@ void parse_file ( char * filename,
                   xvals+1, yvals+1, zvals+1);
       add_edge(edges, xvals[0], yvals[0], zvals[0],
                       xvals[1], yvals[1], zvals[1]);
-      mul_edges(gstack, edges, s,c);
+      mul_edges(gstack, edges, zbuf, s,c);
     }
   
     //3D Shapes
@@ -164,7 +165,7 @@ void parse_file ( char * filename,
                   xvals+1, yvals+1, zvals+1);
       add_box(tris, xvals[0], yvals[0], zvals[0],
                 xvals[1], yvals[1], zvals[1]);
-      mul_tris(gstack, tris,s,c);
+      mul_tris(gstack, tris,zbuf,s,c);
     }
     
     //sphere
@@ -173,7 +174,7 @@ void parse_file ( char * filename,
       sscanf(line, "%lf %lf %lf %lf",
                     xvals, yvals, zvals,&r);     
       add_sphere(tris, xvals[0], yvals[0], zvals[0],r,step);
-      mul_tris(gstack, tris,s,c);
+      mul_tris(gstack, tris,zbuf, s,c);
     }
 
     //torus
@@ -183,7 +184,7 @@ void parse_file ( char * filename,
                     xvals, yvals, zvals,xvals+1, yvals+1);     
       add_torus(tris, xvals[0], yvals[0], zvals[0],
                 xvals[1], yvals[1], step);
-      mul_tris(gstack, tris,s,c);
+      mul_tris(gstack, tris,zbuf, s,c);
     }
     
 

@@ -10,7 +10,7 @@ for red, green and blue respectively
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
-
+#include <float.h>
 #include "ml6.h"
 #include "display.h"
 
@@ -28,10 +28,14 @@ If you wish to change this behavior, you can change the indicies
 of s that get set. For example, using s[x][YRES-1-y] will have
 pixel 0, 0 located at the lower left corner of the screen
 ====================*/
-void plot( screen s, color c, int x, int y) {
+void plot( zbuffer zbuf, screen s, color c, int x, int y, double z) {
   int newy = YRES - 1 - y;
-  if ( x >= 0 && x < XRES && newy >=0 && newy < YRES )
-    s[x][newy] = c;
+  if (x >= 0 && x < XRES && newy >=0 && newy < YRES){
+    if(z > zbuf[x][y].value){
+      zbuf[x][y].value = z;
+      s[x][newy] = c;
+    }
+  }
 }
 
 /*======== void clear_screen() ==========
@@ -51,6 +55,15 @@ void clear_screen( screen s ) {
   for ( y=0; y < YRES; y++ )
     for ( x=0; x < XRES; x++)      
       s[x][y] = c;
+}
+void clear_zbuf(zbuffer zbuf){
+  int x, y;
+  meta val;
+  val.value = -DBL_MAX;
+  for ( y=0; y < YRES; y++ )
+    for ( x=0; x < XRES; x++){      
+      zbuf[x][y] = val;
+    }
 }
 
 /*======== void save_ppm() ==========

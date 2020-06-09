@@ -15,9 +15,7 @@ Creates the point structure in order to represent a pixel as a color triple
 #define MAX_COLOR 255
 #define DEFAULT_COLOR 0
 
-#ifndef M_PI
-    #define M_PI 3.14159265358979323846
-#endif
+
 
 /*
   Every point has an individual int for
@@ -30,6 +28,9 @@ struct point_t {
   unsigned char blue;
 } point_t;
 
+struct meta{
+  double value;
+} zbuf;
 /*
   We can now use color as a data type representing a point.
   eg:
@@ -39,7 +40,7 @@ struct point_t {
   c.blue = 187;
 */
 typedef struct point_t color;
-
+typedef struct meta meta;
 /*
   Likewise, we can use screen as a data type representing
   an XRES x YRES array of colors.
@@ -48,5 +49,5 @@ typedef struct point_t color;
   s[0][0] = c;
 */
 typedef struct point_t screen[XRES][YRES];
-
+typedef struct meta zbuffer[XRES][YRES];
 #endif

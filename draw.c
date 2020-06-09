@@ -180,13 +180,13 @@ void add_torus(struct matrix *tris,
   {
     if((point+1)%stp != 0){
       add_tri(tris,torus->m[0][point],torus->m[1][point],torus->m[2][point],
-      torus->m[0][point+1],torus->m[1][point+1],torus->m[2][point+1],
-      torus->m[0][point+stp],torus->m[1][point+stp],torus->m[2][point+stp]);
+      torus->m[0][point+stp],torus->m[1][point+stp],torus->m[2][point+stp],
+      torus->m[0][point+1],torus->m[1][point+1],torus->m[2][point+1]);
     }
     if(point%stp != 0 ){
-      add_tri(tris,torus->m[0][point+step],torus->m[1][point+step],torus->m[2][point+step],
-      torus->m[0][point],torus->m[1][point],torus->m[2][point],
-      torus->m[0][point+stp],torus->m[1][point+stp],torus->m[2][point+stp]);
+      add_tri(tris, torus->m[0][point+step],torus->m[1][point+step],torus->m[2][point+step],
+      torus->m[0][point+stp],torus->m[1][point+stp],torus->m[2][point+stp],
+      torus->m[0][point],torus->m[1][point],torus->m[2][point]);
     }
   }
   return;
@@ -372,7 +372,7 @@ Returns:
 Go through points 2 at a time and call draw_line to add that line
 to the screen
 ====================*/
-void draw_lines(struct matrix *points, screen s, color c)
+void draw_lines(struct matrix *points, zbuffer zbuf, screen s, color c)
 {
   if (points->lastcol < 2)
   {
@@ -386,7 +386,9 @@ void draw_lines(struct matrix *points, screen s, color c)
               points->m[1][point],
               points->m[0][point + 1],
               points->m[1][point + 1],
-              s, c);
+              points->m[0][point + 2],
+              points->m[1][point + 2],
+              zbuf, s, c);
 } // end draw_lines
 
 int check_valid_tri(double x0, double y0, double z0,
@@ -415,26 +417,25 @@ Returns:
 Go through points 2 at a time and call draw_line to add that line
 to the screen
 ====================*/
-void draw_tris(struct matrix *points, screen s, color c)
+void draw_tris(struct matrix *points,zbuffer zbuf, screen s, color c)
 {
-
-  if (points->lastcol < 3)
+  const int last = points->lastcol;
+  if (last < 3)
   {
     printf("Need at least 3 points to draw a tri!\n");
     return;
   }
-  if ((points->lastcol) % 3)
+  if (last % 3)
   {
     printf("ERROR: Invalid input for triangle matrix \n");
     return;
   }
-
   int point;
-  for (point = 0; point < points->lastcol - 2; point += 3)
+  for (point = 0; point < last - 2; point += 3)
   {
     draw_tri(points->m[0][point],points->m[1][point],points->m[2][point],
              points->m[0][point+1],points->m[1][point+1],points->m[2][point+1],
-             points->m[0][point+2],points->m[1][point+2],points->m[2][point+2],s,c);
+             points->m[0][point+2],points->m[1][point+2],points->m[2][point+2],zbuf, s,c);
   }
 } // end draw_tris
 
@@ -459,12 +460,10 @@ int getB(int x0, int x1, int y0, int y1){
   return (y0 > y1 || (y0 == y1 && x1 < x0));
 }
 
-void draw_tri(double x0,double y0,double z0,double x1,double y1,double z1,double x2,double y2,double z2,screen s, color c){
+void draw_tri(double x0,double y0,double z0,double x1,double y1,double z1,double x2,double y2,double z2,zbuffer zbuf, screen s, color c){
   if(check_valid_tri(x0,y0,z0,x1,y1,z1,x2,y2,z2)){
     double tx,ty,tz,bx,by,bz,mx,my,mz;
-    double dx,dm,dt;
-    dm = 0;
-    dt = 0;
+    double dx,dz,dmx,dmz,dtx,dtz;
     switch(getT(x0,x1,x2,y0,y1,y2)){
       case 0:
         tx = x0;ty = y0;tz = z0;
@@ -476,44 +475,83 @@ void draw_tri(double x0,double y0,double z0,double x1,double y1,double z1,double
         if(getB(x0,x2,y0,y2)){bx = x2;by = y2;bz = z2;mx = x0;my = y0;mz = z0;
                         }else{bx = x0;by = y0;bz = z0;mx = x2;my = y2;mz = z2;}
         break;
-      case 2:
+      default:
         tx = x2;ty = y2;tz = z2;
         if(getB(x0,x1,y0,y1)){bx = x1;by = y1;bz = z1;mx = x0;my = y0;mz = z0;
                         }else{bx = x0;by = y0;bz = z0;mx = x1;my = y1;mz = z1;}
         break;
     }
-    dx = (tx-bx) / (ty-by);
-    if(my != by)dm = (mx-bx)/ (my-by);
-    if(ty != my)dt = (tx-mx)/ (ty-my);
+    const double d0y = (ty-by);
+    const double d1y = (my-by);
+    const double d2y = (ty-my);
+    dx = (tx-bx) / d0y;
+    dz = (tz-bz) / d0y;
+    if(my != by){
+      dmx = (mx-bx)/ d1y;
+      dmz = (mz-bz)/ d1y;
+    }
+    if(ty != my){
+      dtx = (tx-mx)/ d2y;
+      dtz = (tz-mz)/ d2y;
+    }
     int y = by;
-    int x;
-    double k0 = bx;
-    double k1 = bx;
+    double kx0,kz0,kx1,kz1;
+    kx0 = bx;
+    kx1 = kx0;
+    kz0 = bz;
+    kz1 = kz0;
     const int hy = my;
     const int gy = ty;
-    color c;
-    c.red = 50 + random()* 205;
-    c.green = 50 +random()* 205;
-    c.blue = 50 +random()* 205;
-    while(y <= hy){
-      draw_line(k0,y,k1,y,s,c);
-      y++;
-      k0 += dx;
-      k1 += dm;
+    color c = genColor();
+    while(y != hy){
+      sline(kx0,kx1,kz0,kz1,++y,zbuf, s,c);
+      kx0 += dx;
+      kz0 += dz;
+      kx1 += dmx;
+      kz1 += dmz;
     }
-    k1 = mx;
-    while(y <= gy){
-      draw_line(k0,y,k1,y,s,c);
-      y++;
-      k0 += dx;
-      k1 += dt;
+    kx1 = mx;
+    kz1 = mz;
+    while(y != gy){
+      sline(kx0,kx1,kz0,kz1,++y,zbuf,s,c);
+      kx0 += dx;
+      kz0 += dz;
+      kx1 += dtx;
+      kz1 += dtz;
     }
   }
 }
-void draw_line(int x0, int y0, int x1, int y1, screen s, color c)
+color genColor(){
+    color c;
+    c.red = 200 + random()* 55;
+    c.green = 200 + random()* 55;
+    c.blue = 200 + random()* 55;
+    return c;
+}
+void sline(int x0, int x1, double z0, double z1, int y,zbuffer zbuf, screen s, color c){
+  if(x0>x1){
+    sline(x1,x0,z1,z0,y,zbuf, s,c);
+  }
+  double diff = 0;
+  double cz = z0;
+  if(x0 != x1){
+    diff = (z1-z0)/(x1-x0+1);
+  }
+  while(x0 <= x1){
+    plot(zbuf,s,c,x0,y, cz);
+    cz += diff;
+    ++x0;
+  }
+}
+void draw_line(int x0, int y0, int x1, int y1,double z0, double z1, zbuffer zbuf, screen s, color c)
 {
 
   int x, y, d, A, B;
+  double diff = 0;
+  double cz = z0;
+  if(x0 != x1){
+    diff = (z1-z0)/(x1-x0+1);
+  }
   //swap points if going right -> left
   int xt, yt;
   if (x0 > x1)
@@ -542,16 +580,17 @@ void draw_line(int x0, int y0, int x1, int y1, screen s, color c)
       d = A + B / 2;
       while (x < x1)
       {
-        plot(s, c, x, y);
+        plot(zbuf, s, c, x, y, cz);
         if (d > 0)
         {
           y += 1;
           d += B;
         }
         x++;
+        cz += diff;
         d += A;
       } //end octant 1 while
-      plot(s, c, x1, y1);
+      plot(zbuf, s, c, x1, y1, cz);
     } //end octant 1
 
     //octant 8
@@ -562,16 +601,17 @@ void draw_line(int x0, int y0, int x1, int y1, screen s, color c)
       while (x < x1)
       {
         //printf("(%d, %d)\n", x, y);
-        plot(s, c, x, y);
+        plot(zbuf, s, c, x, y, cz);
         if (d < 0)
         {
           y -= 1;
           d -= B;
         }
         x++;
+        cz += diff;
         d += A;
       } //end octant 8 while
-      plot(s, c, x1, y1);
+      plot(zbuf, s, c, x1, y1, cz);
     } //end octant 8
   }   //end octants 1 and 8
 
@@ -586,16 +626,17 @@ void draw_line(int x0, int y0, int x1, int y1, screen s, color c)
 
       while (y < y1)
       {
-        plot(s, c, x, y);
+        plot(zbuf, s, c, x, y, cz);
         if (d < 0)
         {
           x += 1;
           d += A;
         }
         y++;
+        cz += diff;
         d += B;
       } //end octant 2 while
-      plot(s, c, x1, y1);
+      plot(zbuf, s, c, x1, y1, cz);
     } //end octant 2
 
     //octant 7
@@ -605,16 +646,17 @@ void draw_line(int x0, int y0, int x1, int y1, screen s, color c)
 
       while (y > y1)
       {
-        plot(s, c, x, y);
+        plot(zbuf, s, c, x, y, cz);
         if (d > 0)
         {
           x += 1;
           d += A;
         }
         y--;
+        cz += diff;
         d -= B;
       } //end octant 7 while
-      plot(s, c, x1, y1);
+      plot(zbuf, s, c, x1, y1, cz);
     } //end octant 7
   }   //end octants 2 and 7
 } //end draw_line
